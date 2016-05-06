@@ -82,7 +82,7 @@ K load(S s)
   if(!f){O("%s.k: file not found\n",s);r=FE;GC;}
   lines(f); if(fclose(f)){r=FE;GC;} scrLim--;
   if(fCmplt==1) { kerr("open-in-next-line"); oerr(); }
-  kerr("undescribed"); fer=0;
+  kerr("undescribed"); fer=fer1=0;
   r=_n();
 cleanup:
   fLoad=ofLoad;fCmplt=ofCmplt;
@@ -151,6 +151,8 @@ K backslash(S s, I n, K*dict)
               "\\  scan monad   trace n times      n f\\x    10(|+\\)\\1 1\n"
                "/  over         {x+y+z}/[1 2 3;4;7 8 9]  f/[x;y;z]\n"
               "\\  scan         {x+y+z}\[1 2 3;4;7 8 9]  f\\[x;y;z]\n"
+               "/  join         \",\"/(\"a\";\"b\")\n"
+              "\\  split        \",\"\\\"a,b\"\n"
                "'  each         \"abc\" ,' \"def\"    join each  \n"
                "'  each         !:' 2 3 4    enumerate each  \n"
                "/: eachright    #:/:(2;2 2;2 2 2)    count each right\n"
@@ -259,7 +261,8 @@ K backslash(S s, I n, K*dict)
               "Constants:\n"
               "(Note: the K epoch is 2035-01-01T00:00:00)\n"
               "_T       [current UTC Julian day count]+[fraction complete]\n"
-              //"_a     \n"
+              "_a       arguments\n"
+              "_c       message source address\n"      
               "_d       K-Tree path / current working dictionary\n"
               "_f       anonymous reference to current function\n"
               "_h       host name\n"
@@ -316,6 +319,7 @@ K backslash(S s, I n, K*dict)
               "_dv      delete value\n"
               "_dvl     delete several values\n"
               "_hash    hash, (x;_hash x)?y\n"
+              "_hat     caret/without, x _hat y\n"
               "_in      true if x is in y\n"
               "_lin     _in for several values\n"
               "_lsq     matrix division\n"
@@ -449,29 +453,17 @@ Z K backslash_d(S s,I n,K*dict) {
   C z[256];
   //I len=strlen(d_); if(n==2){K r=newK(-3,len); strncpy(kC(r),d_,len); R r;}  // yields contents of d_ enclosed in quotes
   if(n==2) {O("%s\n",d_); R _n();}  // yields contents of d_ without quotes (same as k3.2)
-  if(n==4 && s[3]==*".") { d_=(S)sp(""); R _n();}
-  if(n==4 && s[3]==*"^") {
+  if(n==4 && s[3]=='.') { d_=(S)sp(""); R _n();}
+  if(n==4 && s[3]=='^') {
     if(strlen(d_)==0) R _n();
     if(strlen(d_)==2) {d_=(S)sp(""); R _n();}
-    if(strlen(d_)>3) {
-      I c=0,i=0;
-      for(i=0;i<strlen(d_);i++) if(d_[i]==*".")c=i;
-      strcpy(z,d_); z[c]=*"\0"; d_=(S)sp(z);
-      R _n();
-    }
-  }
-  // \d .k
-  if(n==5 && s[3]==*"." && s[4]==*"k") { d_=(S)sp(".k"); R _n();}
-  if(n==5 && s[3]==*"." && s[4]!=*"k") {O("absolute backslash-d should begin with .k\n"); R _n();} 
-  if(isalpha(s[3])) { 
-    denameD(dict,s+3,1);
-    strcpy(z,d_); strcat(z,"."); strcat(z,s+3); d_=(S)sp(z);
-    R _n();
-  }
-  if(n>=6 && s[3]==*"." && s[4]==*"k" && s[5]==*".") {denameD(&KTREE,s+3,1); d_=(S)sp(s+3); R _n();}
-  if(n>=6 && s[3]==*"." && (s[4]!=*"k" || s[5]!=*".")) {O("absolute backslash-d should begin with .k.\n"); R _n();}
-  R NYI;
-}
+    if(strlen(d_)>3){ I c=0,i=0; for(i=0;i<strlen(d_);i++)if(d_[i]=='.')c=i; strcpy(z,d_); z[c]='\0'; d_=(S)sp(z); R _n(); } }
+  if(n==5 && s[3]=='.' && s[4]=='k') { d_=(S)sp(".k"); R _n();}
+  if(n==5 && s[3]=='.' && s[4]!='k') {O("absolute backslash-d should begin with .k\n"); R _n();} 
+  if(isalpha(s[3])){ denameD(dict,s+3,1); strcpy(z,d_); strcat(z,"."); strcat(z,s+3); d_=(S)sp(z); R _n(); }
+  if(n>=6 && s[3]=='.' && s[4]=='k' && s[5]=='.'){denameD(&KTREE,s+3,1); d_=(S)sp(s+3); R _n();}
+  if(s[3]=='.'){denameD(&KTREE,s+3,1); d_=(S)sp(s+3); R _n();}
+  R NYI; }
 
 Z K backslash_v(S s,I n,K*dict) {
   C z[256]; z[0]='\0';

@@ -139,10 +139,14 @@ K dot_ref(K *p, K *x, K *z, I s, K c, K y)
     K args=newK(0,argc);U(args)//Cheating 0-type w/ NULLs 
     kK(args)[0]=ci(*p);
     if(argc > 1) kK(args)[1] = ci(y);
+    fam=0;
     K r = specialAmendDot(c,args);
     cd(args);
     U(r)
     cd(*p); 
+    // XXX: it seems silly to me to make a klone() of a value
+    // which has been computed just above, but it crashes Kona
+    // at several places if I remove this...
     if (5==r->t || 0==r->t)
     {
       *p=kclone(r);
@@ -277,6 +281,7 @@ K dot_tetradic(K a, K b, K c, K y)//Handles triadic and tetradic case
 
     p = denameS(d_,*kS(a),1);
     U(p) //oom
+    // if(1<rc(*p)){K x=*p;*p=kclone(x);cd(x);} // XXX
   }
   else q = kclone(a); 
 

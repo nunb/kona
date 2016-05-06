@@ -7,6 +7,60 @@
 
 S lineA;
 S lineB;
+__thread I fdc=1;   // Flag denameD create
+I fll=0;            //flag line length
+
+#if 0
+Z S mm[] = {
+  "UNMARKED",
+  "IGNORE",
+  "BRACKET",
+  "END",
+  "PAREN",
+  "BRACE",
+  "QUOTE",
+  "SYMBOL",
+  "NAME",
+  "NUMBER",
+  "VERB",
+  "ADVERB",
+  "MARK_CONDITIONAL",
+  "COUNT" };
+Z I dumm(I *m,I n){O("\n");DO(n,if(m[i]<0)O("-");O("%s ",mm[ABS(m[i])]));R 0;}
+Z void showx(K x){ O("[%lld,%lld,%lld] ",xt,xn,rc(x));show(x);if(6==xt)O("\n");}
+Z void A(I n){DO(n,O(" "));}
+Z void dum7(K*_v,I a){
+  K v=*_v;
+  int n=0;I vt=v->t,vn=v->n,f=1;
+  S typ7[]={"wd","wordfn","cfn","charfn",":[]","if[]","while[]","do[]"};
+  V e=0;V*kw=kW(v);
+  if(!a)O("\n");
+  if(7==vt){
+    A(a);O("[%lld,%lld,%lld,%s]\n",vt,vn,rc(v),typ7[vn]);
+    SW(vn){
+    CS(2, A(a);O(" val: %p %p %p\n",kw[0],kw[1],kw[2]))
+    CD: {
+      K par=(K)kV(v)[PARAMS],loc=(K)kV(v)[PARAMS],conj=(K)kV(v)[CONJ];
+      if(par->n){A(a);O("params: ");dum7(&par,a+2);}
+      if(loc->n){A(a);O("locals: ");dum7(&loc,a+2);}
+      if(conj){A(a);O("  conj: ");dum7(&conj,a+2);}
+      if(3==vn){
+        K cw=(K)kV(v)[CACHE_WD];K ct=(K)kV(v)[CACHE_TREE];
+        if(cw){A(a);O("  cachewd: ");dum7(&cw,a+2);}
+        if(ct){A(a);O("cachetree: ");dum7(&ct,a+2);}
+        A(a);showx(v);
+      } else
+        while((e=*kw++)){
+          if(f){A(a);O("entries-->\n");f=0;}
+          A(a);O("%d entry",n++);
+          if((L)e<DT_SIZE){O("  dt: %s (%p)\n",DT[(L)e].text,e);}
+          else dum7((K*)e,a+2); } } } }
+  else{ A(a);O("%p ",_v);showx(v); }
+}
+#else
+#define dumm(x,y)
+#define dum7(x,y)
+#endif
 
 //Parser
 
@@ -115,7 +169,7 @@ Z I mark_name(S s,I n,I i,I*m)
     while(i+c<n&&isalnum_(s[i+c]))c++;if(i+c>=n)break;
     if('.'==s[i+c])c++;               
   }
-  if(1<i&&'.'==s[i-1]&&0==m[i-2])c=0;
+  if(1<i&&'.'==s[i-1]&&(0==m[i-2]&&'.'!=s[i-2]))c=0;
   R c;
 }
 
@@ -225,7 +279,7 @@ I mark(I*m,I k,I t){DO(k, m[i]=i?t:-t) R k;}
 //      this rule doesn't apply to function argument lists, eg: f:{  [a] 1} is ok. however f: {\n\n  [a;b;d]  1+1} not ok
 //      so the check probably has to do with whether some useful symbol occurred on the line already
 //other errors: syntax error
-K wd(S s, I n){lineA=s; R wd_(s,n,denameD(&KTREE,d_,1),0);}
+K wd(S s, I n){lineA=s; fdc=0;R wd_(s,n,denameD(&KTREE,d_,1),0);}
 K wd_(S s, I n, K*dict, K func) //parse: s input string, n length ; 
                                 //assumes: s does not contain a }])([{ mismatch, s is a "complete" expression
 {
@@ -252,6 +306,8 @@ K wd_(S s, I n, K*dict, K func) //parse: s input string, n length ;
   marker(mark_verb,  MARK_VERB)  // ( D+: | _AA+ | V ) where D := [0-9] , V := ~!@#$%^&*_-+=|<,>.?:
   marker(mark_ignore,MARK_IGNORE)// get leftover spaces, anything else we want to ignore
 
+  dumm(m,n);
+
   DO(n,if(m[i]==MARK_UNMARKED){cd(v);cd(km); R PE;}) 
   //DO(n,if(m[i]>0 && (!i || m[i]!=ABS(m[i-1]) )){cd(v);cd(km); R PE;})  //this is true but unnecessary. we handle "_db_bd 1"
 
@@ -269,7 +325,7 @@ K wd_(S s, I n, K*dict, K func) //parse: s input string, n length ;
   I oc=overcount(m,n);
   K kw=newK(-4,1+oc); M(v,km,ks2,kw) V*w=(V*)kK(kw);//words. Assumes terminal extra NULL
 
-  I c=0,j=0;
+  I c=0,j=0;  if(!fll)fll=strlen(s2); else fll=-1;
   DO(y, i+=-1+(j=capture(s2,y,i,m,w,&c,(K*)kV(v)+LOCALS,dict,func)); if(!j){M(0,v,km,ks2,kw)} ) 
   //O("sl:");DO(n  ,if(!s2[i])break;O("%4c" ,s2[i]))O("\n"); O("ml:");DO(n  ,O("%4ld",m[i]))O("\n"); O("##:");DO(n  ,O("%4ld",  i ))O("\n"); 
   cd(km);cd(ks2);
@@ -286,6 +342,7 @@ K wd_(S s, I n, K*dict, K func) //parse: s input string, n length ;
 
   kV(v)[CODE]=kw; // return what we just built
   kW(v)[c]=0;
+  dum7(&v,0);
   R v; 
 }
 
@@ -328,11 +385,39 @@ Z I param_validate(S s,I n) // Works on ([]) and {[]} but pass inside exclusive 
   R 4==p?1:2; //State-4 yield 1 (pass, good parameters), otherwise yield 2 (fail, bad paramters)
 }
 
+Z K* inKtreeR(K*p,S t,I create) {
+  if(!*t)R p;
+  if('.'==*t)t++;
+  I c=0,a=(*p)->t;
+  while(t[c] && '.'!=t[c])c++;
+  S u=strdupn(t,c);//oom
+  S k=sp(u); //oom
+  free(u);
+  t+=c;
+  P('_'==*k,(K*)kerr("reserved"))// ... not positive this goes here. does it fit in LOC? or parser maybe?
+
+  //Probably the below error check (and any others in front of LOC) should be moved into LOC
+  //and LOC should have the potential to return 0 (indicating other errors as well, e.g. out of memory)
+  P(!(6==a || 5==a),(K*)TE)
+  K e=0;
+  if(create) { e=(K)lookupEntryOrCreate(p,k); P(!e,(K*)ME) }
+  else { K a=*p; if(5==a->t)e=DE(a,k); P(!e,(K*)0) }
+  if('.'==*t && (!t[1] || '.'==t[1])) { t++; p=(K*)EAP(e); }    //attribute dict
+  else p=EVP(e); //value
+  R inKtreeR(p,t,create);
+}
+
+K* inKtree(K*d, S t, I create) {
+  if(!simpleString(t)) R 0; //some kind of error
+  R inKtreeR('.'==*t||!*t?&KTREE:d,t,create);
+}
+
 //TODO: capture - oom all
 I capture(S s,I n,I k,I*m,V*w,I*d,K*locals,K*dict,K func) 
   //IN string, string length, pos in string, markings; 
   //OUT words, current #words; IN locals-storage, names-storage, charfunc/NULL
 {
+  if(fll && fll!=n)fll=-1;
   V z=0,*p=w+*d; *p=0;
   I r=1,v=0,y=0,a,b=0,c;S u="",e;K g;I l;
 
@@ -535,18 +620,24 @@ I capture(S s,I n,I k,I*m,V*w,I*d,K*locals,K*dict,K func)
                           {if(':'==s[k+r])r++; z=denameS(kV(func)[CONTeXT],u,1);}
                         else if(dict==(K*)kV(func)+LOCALS && ':'==s[k+r] && -MARK_VERB==m[k+r]) z=denameD(dict,u,1); 
                           //K3.2:  a+:1 format applies to context-globals not locals
-                        else z=denameS(kV(func)[CONTeXT],u,1);//Otherwise check the context (refactor with above?) 
-                          //The way this else-branch is set up, {b;b:1} will create context-global b though K3.2 won't. Seems OK
+                        else z=denameS(kV(func)[CONTeXT],u,0);//Otherwise check the context (refactor with above?) 
                       }
-                      else z=denameD(dict,u,1);
+                      else {
+                        if(fll>0)fdc=0;
+                        I i;for(i=k;i<strlen(s);i++)if(s[i]==':'||s[i]=='x'){fdc=1;break;}
+                        z=inKtree(dict,u,0);
+                        if((!fdc)&&!z){L err=(L)VLE;
+                           #ifndef DEBUG
+                           oerr(); O("%s\n%c\n",u,'^');
+                           #endif
+                           R err;}
+                        z=denameD(dict,u,fll&&fdc); }
       ) 
     CS(MARK_VERB   ,  // "+" "4:" "_bin"  ;  grab "+:", "4::"
                       if(s[k]=='\\'){z=(V)0x7c; break;}   //trace or scan
                       if(s[k]==':' && s[strlen(s)-1]!=':' && lineB && lineB[strlen(lineB)-1]!=']' && lineB[0]!=')'){
-                        I i=0; I c=0;
-                        for(i=k-1;i>0;i--){if(s[i]!=' '){c=s[i];break;}}
-                        if(c==';')z=(V)0x7d;
-                        if(z==(V)0x7d) break; }
+                        I i=0;
+                        for(i=k-1;i>0;i--){if(s[i]!=' '){c=s[i];break;} } }
                       if('_'==s[k] && r > 1)
                       {
                         if(k+r<n && ':'==s[k+r] && -MARK_VERB==m[k+r]) R (L)PE;

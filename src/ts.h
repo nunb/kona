@@ -12,8 +12,15 @@
 #define LLONG_MAX	INT64_MAX
 #endif
 
-typedef void* V;
+#ifdef __x86_64__
+typedef long long L;
+typedef unsigned long long UI;
+#else
 typedef long L;
+typedef unsigned long UI;
+#endif
+
+typedef void* V;
 typedef long long I; //there are cases where casting pointer arithmetic to signed int will fail
 typedef unsigned long long uI;
 typedef double F;
@@ -21,11 +28,10 @@ typedef char C; //Store +-3 type '\0' terminated
 typedef C* S;
 typedef const C* cS;
 typedef unsigned char UC;
-typedef unsigned long UI;
 typedef I veci __attribute__ ((vector_size (16)));
 typedef struct k0{I _c,t,n;struct k0*k[1];}*K; //main K object
 typedef struct m1{char a,b,c[sizeof(I)-3],d;I n;} M1; //inet sent message header.  m.a?little-:big-endian,m.b is type???, m.d in {0,1,2}->{3:,4:,response}, m.n is size of nested K struct in bytes. c unknown, inserted [5] for 64b alignment
-typedef struct m0{M1 m1;I r;K k;} M0; //r=read so far. inet message reader. there is probably a more elegant way to do this
+typedef struct m0{M1 m1;I r;K k;I a;} M0; //r=read so far. a=remote client. inet message reader. there is probably a more elegant way to do this
 enum TYPE_SEVEN_MEMBERS {CONTeXT,DEPTH,CODE,LOCALS,PARAMS,CONJ,CACHE_WD,CACHE_TREE,TYPE_SEVEN_SIZE};  //sp(), code in {-4, -4, -4[3], -3, -4,-4,-4,-4}, Kd(), Kd(), Kv()/0-List-w/-NULLs
 //Executable types: t-n is 7-n for n in {0,1,2,3,4,5,6,7}: 0: list of unexecuted types, 1: [derived] verb, 2: dynamically loaded function, 3: brace function{}, 4: ":[]", 5: if[], 6: while[], 7: do[]
 #define NSLOTS 2
@@ -103,6 +109,7 @@ typedef struct tr{ I adverbClass; I arity; V func; S text; AF alt_funcs; } TR; /
 #define SYE kerr("syntax")
 #define NYI kerr("nyi")
 #define LMT kerr("limit")
+#define VLE kerr("value")
 
 #define RTIME(d,...) {d=clock();{__VA_ARGS__;}d=(clock()-d)/CLOCKS_PER_SEC;}
 #define TIME(...) {F d; RTIME(d,__VA_ARGS__); O("Elapsed:%.7f\n",d);}
